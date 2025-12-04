@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Student Marks System</title>
+<style>
+body { font-family: Arial; max-width: 900px; margin: 20px auto; padding: 0 10px; }
+h1,h2 { margin-bottom: 10px; }
+label { display:block; margin-top:8px; }
+input, select, button { padding:6px; margin-top:4px; }
+table { width:100%; border-collapse: collapse; margin-top:10px; }
+th, td { border:1px solid #ccc; padding:6px; text-align:center; }
+.green { background:#28a745; color:white; }
+.yellow { background:#ffc107; color:#222; }
+.red { background:#dc3545; color:white; }
+.controls { margin-top:10px; }
+</style>
+</head>
+<body>
+<h1>Student Multi-Subject Marks System</h1>
+
+<div id="teacherLogin">
+  <h2>Teacher Login</h2>
+  <label>Password:</label>
+  <input type="password" id="teacherPassword">
+  <button onclick="checkTeacherPassword()">Login</button>
+</div>
+
+<div id="teacherPanel" style="display:none;">
+  <h2>Teacher Panel</h2>
+  <label>Student Name:</label><input type="text" id="studentName">
+  <label>Student Code:</label><input type="text" id="studentCode">
+  <label>Subject:</label>
+  <select id="subjectSelect">
+    <option>Math</option><option>Gym</option><option>Art</option>
+    <option>Geography</option><option>French</option><option>Literacy</option>
+    <option>Science</option><option>History</option><option>Religion</option>
+  </select>
+  <label>Mark (%):</label><input type="number" id="studentMark" min="0" max="100">
+  <div class="controls">
+    <button onclick="addMark()">Add Mark</button>
+    <button onclick="exportCSV()">Export CSV</button>
+    <button onclick="clearAll()">Clear All</button>
+  </div>
+  <table id="marksTable">
+    <thead>
+      <tr><th>#</th><th>Name</th><th>Code</th><th>Subject</th><th>Mark</th><th>Date</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div id="parentPanel">
+  <h2>Parent Panel</h2>
+  <label>Enter Student Code:</label>
+  <input type="text" id="parentCode">
+  <button onclick="showParentReport()">View Report</button>
+  <div id="parentReport"></div>
+</div>
+
+<script>
+const TEACHER_PASSWORD = "miljan45601";
+const SUBJECTS = ["Math","Gym","Art","Geography","French","Literacy","Science","History","Religion"];
+let marksData = JSON.parse(localStorage.getItem("marksData") || "[]");
+
+function checkTeacherPassword() {
+  const input = document.getElementById("teacherPassword").value;
+  if(input === TEACHER_PASSWORD) {
+    document.getElementById("teacherLogin").style.display = "none";
+    document.getElementById("teacherPanel").style.display = "block";
+    renderTable();
+  } else {
+    alert("Incorrect password!");
+  }
+}
+
+function saveData() {
+  localStorage.setItem("marksData", JSON.stringify(marksData));
+}
+
+function addMark() {
+  const name = document.getElementById("studentName").value.trim();
+  const code = document.getElementById("studentCode").value.trim();
+  const subject = document.getElementById("subjectSelect").value;
+  const mark = Number(document.getElementById("studentMark").value);
+  if(!name || !code || isNaN(mark) || mark<0 || mark>100) { alert("Fill all fields correctly"); return; }
+  const date = new Date().toLocaleDateString();
+  marksData.push({name, code, subject, mark, date});
+  marksData.sort((a,b)=>b.mark-a.mark); // descending
+  saveData();
+  renderTable();
+  document.getElementById("studentMark").value = "";
+}
+
+function renderTable() {
+  const tbody = document.getElementById("marksTable").querySelector("tbody");
+  tbody.innerHTML = "";
+  marksData.forEach((m,i)=>{
+    const tr = document.createElement("tr");
+    const color = m.mark>=80?"green":m.mark>=60?"yellow":"red";
+    tr.innerHTML = `<td>${i+1}</td><td>${m.name}</td><td>${m.code}</td><td>${m.subject}</td>
+                    <td class="${color}">${m.mark}</td><td>${m.date}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function showParentReport() {
+  const code = document.getElementById("parentCode").value.trim();
+  const reportDiv = document.getElementById("parentReport");
+  const studentMarks = marksData.filter(m=>m.code===code);
+  if(studentMarks.length===0){ reportDiv.innerHTML="Code not found."; return; }
+
+  let html = "";
+  SUBJECTS.forEach(sub=>{
+    const subMarks = studentMarks.filter(m=>m.subject===sub).sort((a,b)=>b.mark-a.mark);
+    if(subMarks.length>0){
+      html+=`<h3>${sub}</h3><table><tr><th>Mark</th><th>Date</th><th>Rank</th></tr>`;
+      subMarks.forEach(m=>{
+        const rank = marksData.filter(mm=>mm.subject===sub).sort((a,b)=>b.mark-a.mark).findIndex(mm=>mm===m)+1;
+        const color = m.mark>=80?"green":m.mark>=60?"yellow":"red";
+        html+=`<tr><td class="${color}">${m.mark}</td><td>${m.date}</td><td>${rank} / ${marksData.filter(mm=>mm.subject===sub).length}</td></tr>`;
+      });
+      html+="</table>";
+    }
+  });
+  reportDiv.innerHTML = html;
+}
+
+function exportCSV() {
+  let csv = "Name,Code,Subject,Mark,Date\n";
+  marksData.forEach(m=>csv+=`${m.name},${m.code},${m.subject},${m.mark},${m.date}\n`);
+  const blob = new Blob([csv],{type:"text/csv"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "marks.csv";
+  a.click();
+}
+
+function clearAll() {
+  if(confirm("Delete all marks?")) {
+    marksData=[];
+    saveData();
+    renderTable();
+  }
+}
+
+renderTable();
+</script>
+</body>
+</html>
